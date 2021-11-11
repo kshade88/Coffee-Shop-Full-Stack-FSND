@@ -17,7 +17,7 @@ CORS(app)
 !! NOTE THIS MUST BE UNCOMMENTED ON FIRST RUN
 !! Running this funciton will add one
 '''
-#db_drop_and_create_all()
+db_drop_and_create_all()
 
 # ROUTES
 '''
@@ -33,12 +33,19 @@ CORS(app)
 @app.route('/drinks')
 @requires_auth('get:drinks')
 def get_all_drinks(jwt):
-    all_drinks = Drink.query.all()
-    drinks = [drink.short() for drink in all_drinks]
-    return jsonify({
-        "success": True,
-        "drinks": drinks
-    })
+    try:
+        all_drinks = Drink.query.all()
+        if all_drinks:
+            drinks = [drink.short() for drink in all_drinks]
+        else:
+            drinks = []
+        return jsonify({
+            "success": True,
+            "drinks": drinks
+        })
+    except Exception as e:
+        print(e)
+        abort(422)
 
 
 '''
@@ -54,12 +61,16 @@ def get_all_drinks(jwt):
 @app.route('/drinks-detail')
 @requires_auth('get:drinks-detail')
 def get_all_drinks_detailed(jwt):
-    all_drinks = Drink.query.all()
-    drinks = [drink.long() for drink in all_drinks]
-    return jsonify({
-        "success": True,
-        "drinks": drinks
-    })
+    try:
+        all_drinks = Drink.query.all()
+        drinks = [drink.long() for drink in all_drinks]
+        return jsonify({
+            "success": True,
+            "drinks": drinks
+        })
+    except Exception as e:
+        print(e)
+        abort(422)
 
 
 '''
@@ -90,7 +101,8 @@ def create_drink(jwt):
             'success': True,
             'drinks': drink.long()
         })
-    except:
+    except Exception as e:
+        print(e)
         abort(422)
 
 
@@ -128,13 +140,11 @@ def update_drink(jwt, drink_id):
 
         return jsonify({
             'success': True,
-            'drinks': drink.long()
+            'drinks': [drink.long()]
         }), 200
 
     except:
         abort(422)
-
-
 
 
 '''
@@ -156,7 +166,7 @@ def delete_drink(jwt, drink_id):
         drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
 
         if drink is None:
-            abort(422)
+            abort(404)
 
         drink.delete()
 
@@ -169,9 +179,6 @@ def delete_drink(jwt, drink_id):
 
 
 # Error Handling
-'''
-Example error handling for unprocessable entity
-'''
 
 
 @app.errorhandler(422)
@@ -183,24 +190,17 @@ def unprocessable(error):
     }), 422
 
 
-'''
-@TODO implement error handlers using the @app.errorhandler(error) decorator
-    each error handler should return (with approprate messages):
-             jsonify({
-                    "success": False,
-                    "error": 404,
-                    "message": "resource not found"
-                    }), 404
-
-'''
-
-'''
-@TODO implement error handler for 404
-    error handler should conform to general task above
-'''
+@app.errorhandler(404)
+def unprocessable(error):
+    return jsonify({
+        "success": False,
+        "error": 404,
+        "message": "resource not found"
+    }), 404
 
 
-'''
-@TODO implement error handler for AuthError
-    error handler should conform to general task above
-'''
+@app.errorhandler(AuthError)
+def auth_error(e):
+    response = jsonify(e.error)
+    response.status_code = e.status_code
+    return response
